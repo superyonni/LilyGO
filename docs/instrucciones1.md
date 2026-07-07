@@ -1,0 +1,1 @@
+Todo archivo de codigo debe contener tipo comentario solamente a nivel de cada archivo: "Creado por Jonathan Garrido S. - jgarrido.spa@gmail.com" se debe incluir en todas las partes donde exista un author, cada version de mejora o upgrade debe quedar correctamente en el git, como avance.
