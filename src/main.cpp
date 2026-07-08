@@ -1,12 +1,74 @@
 // Creado por Jonathan Garrido S. - jgarrido.spa@gmail.com
 #include <Arduino.h>
+
+#include "config.h"
+#include "lorawan_manager.h"
+
+#if JOIN_ONLY_TEST
+
+void setup()
+{
+    pinMode(Power_Enable_Pin, OUTPUT);
+    digitalWrite(Power_Enable_Pin, HIGH);
+
+    SerialMon.begin(MONITOR_SPEED);
+    uint32_t usbWait = millis();
+    while (!SerialMon && (millis() - usbWait < 4000)) {
+        delay(10);
+    }
+    delay(500);
+    SerialMon.println();
+    SerialMon.println(F("BOOT T-Echo LoRaWAN TEST"));
+    SerialMon.flush();
+
+    SerialMon.println(F("=== T-Echo LoRaWAN TEST (solo radio) ==="));
+    SerialMon.println(F("Modo OTAA | AU915 subbanda 2 | join DR2"));
+    SerialMon.println(F("Ver docs/chirpstack-techo-01.md"));
+    SerialMon.flush();
+
+    pinMode(BlueLed_Pin, OUTPUT);
+
+    if (!lorawanManagerBegin()) {
+        SerialMon.println(F("FATAL: radio no inicia"));
+        while (true) {
+            delay(1000);
+        }
+    }
+}
+
+void loop()
+{
+    digitalWrite(BlueLed_Pin, LOW);
+
+    if (lorawanManagerJoin(1)) {
+        digitalWrite(BlueLed_Pin, HIGH);
+        SerialMon.println(F("*** JOIN OK - enviando uplink de prueba ***"));
+
+        GpsFix dummy = {false, 0.0, 0.0, 0.0, 0};
+        LoRaWanTxResult tx = lorawanManagerTransmit(dummy, 3700);
+        if (tx.success) {
+            SerialMon.println(F("*** UPLINK OK ***"));
+        } else {
+            SerialMon.println(F("Uplink fallo tras join"));
+        }
+
+        while (true) {
+            delay(60000);
+            lorawanManagerTransmit(dummy, 3700);
+        }
+    }
+
+    SerialMon.println(F("Reintento JOIN en 30s..."));
+    delay(30000);
+}
+
+#else
+
 #include <Wire.h>
 #include <pcf8563.h>
 
-#include "config.h"
 #include "display_manager.h"
 #include "gps_manager.h"
-#include "lorawan_manager.h"
 
 enum class NodeState {
     INIT,
@@ -94,7 +156,10 @@ static void enterDeepSleep(uint32_t sleepMs)
 void setup()
 {
     SerialMon.begin(MONITOR_SPEED);
-    delay(500);
+    delay(3000);
+    while (!SerialMon && millis() < 5000) {
+        delay(50);
+    }
 
     SerialMon.println();
     SerialMon.println(F("=== T-Echo LoRaWAN Node ==="));
@@ -111,20 +176,16 @@ void loop()
 {
     switch (currentState) {
         case NodeState::INIT: {
+            // LoRaWAN primero — no esperar GPS ni pantalla
+            if (!lorawanManagerBegin()) {
+                SerialMon.println(F("[INIT] Error LoRa"));
+                delay(5000);
+                break;
+            }
+
             displayManagerBegin();
             displayManagerShowBoot();
-
-            if (!gpsManagerBegin()) {
-                displayManagerShowMessage("Error GPS", "Revisar modulo");
-                delay(5000);
-                break;
-            }
-
-            if (!lorawanManagerBegin()) {
-                displayManagerShowMessage("Error LoRa", "Revisar radio");
-                delay(5000);
-                break;
-            }
+            gpsManagerBegin();
 
             batteryMv = readBatteryMv();
             currentState = NodeState::JOINING;
@@ -186,3 +247,5 @@ void loop()
         }
     }
 }
+
+#endif

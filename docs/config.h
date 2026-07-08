@@ -46,28 +46,25 @@
 #define SerialGPS Serial2
 #define MONITOR_SPEED 115200
 
-// --- ACTIVACION LoRaWAN ---
-// 0 = OTAA (produccion, ChirpStack genera sesion tras JoinAccept).
-// 1 = ABP (solo prueba; requiere Activation manual en ChirpStack).
-#ifndef LORAWAN_USE_ABP
-#define LORAWAN_USE_ABP 0
-#endif
+// --- CONFIGURACION DE CHIRPSTACK (OTAA) - device techo-01 ---
+// ChirpStack: Applications / LilyGO-TEcho / Devices / techo-01
+//
+// ChirpStack (hex string)     ->  C++ (correcto, NO cambiar)
+// DevEUI  0a84041d4e2678ab    ->  0x0A84041D4E2678ABULL
+// AppKey  b71f775e5a2bbf32471dfed62ce079a3  ->  bytes MSB abajo (coincide 1:1)
+static const uint64_t JOIN_EUI = 0x0000000000000000ULL;
+static const uint64_t DEV_EUI  = 0x0A84041D4E2678ABULL;
+static uint8_t APP_KEY[] = {
+    0xB7, 0x1F, 0x77, 0x5E, 0x5A, 0x2B, 0xBF, 0x32,
+    0x47, 0x1D, 0xFE, 0xD6, 0x2C, 0xE0, 0x79, 0xA3
+};
+static uint8_t NWK_KEY[] = {
+    0xB7, 0x1F, 0x77, 0x5E, 0x5A, 0x2B, 0xBF, 0x32,
+    0x47, 0x1D, 0xFE, 0xD6, 0x2C, 0xE0, 0x79, 0xA3
+};
 
-// --- CREDENCIALES CHIRPSTACK (device techo-01) ---
-// RadioLib = MSB para DevEUI, JoinEUI y AppKey (igual que ChirpStack UI).
-// Guia oficial: https://www.chirpstack.io/docs/guides/connect-device.html
-#define LORAWAN_JOIN_EUI  0x0000000000000000ULL
-#define LORAWAN_DEV_EUI   0x0A84041D4E2678ABULL
-#define LORAWAN_APP_KEY   0x97, 0xA3, 0x25, 0x1B, 0x06, 0x3E, 0x6D, 0x91, \
-                          0x40, 0x11, 0x67, 0xF8, 0xF9, 0x78, 0x60, 0xC4
-
-// Region AU915 — subbanda 2 (canales 8-15). Debe coincidir con el gateway.
+// Region AU915 — subbanda debe coincidir con el gateway (2 = canales 8-15)
 #define LORAWAN_SUBBAND 2
-
-// true = solo JOIN LoRaWAN (sin GPS/pantalla). Usar para depurar ChirpStack.
-#ifndef JOIN_ONLY_TEST
-#define JOIN_ONLY_TEST 1
-#endif
 
 // --- CONFIGURACION DE TIEMPOS ---
 #define TX_INTERVAL_MS 300000UL
