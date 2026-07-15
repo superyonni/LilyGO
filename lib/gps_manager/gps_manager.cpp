@@ -64,21 +64,26 @@ bool gpsManagerBegin()
     delay(10);
     digitalWrite(Gps_Reset_Pin, HIGH);
 
+#if GPS_QUICK_START
+    SerialMon.println(F("[GPS] Arranque rapido (9600 baud)"));
+#else
     if (!probeGps()) {
         SerialMon.println(F("[GPS] Sin respuesta, usando 9600 baud"));
     }
+#endif
 
     SerialGPS.write("$PCAS04,5*1C\r\n");
-    delay(250);
+    delay(100);
     SerialGPS.write("$PCAS03,1,0,0,0,1,0,0,0,0,0,,,0,0*02\r\n");
-    delay(250);
+    delay(100);
     SerialGPS.write("$PCAS11,3*1E\r\n");
-    delay(250);
+    delay(100);
 
     return true;
 }
 
-bool gpsManagerAcquireFix(GpsFix &fix, uint32_t timeoutMs)
+bool gpsManagerAcquireFix(GpsFix &fix, uint32_t timeoutMs, GpsProgressFn onProgress,
+                          GpsAbortFn shouldAbort)
 {
     fix.valid = false;
     fix.latitude = 0.0;
@@ -87,12 +92,34 @@ bool gpsManagerAcquireFix(GpsFix &fix, uint32_t timeoutMs)
     fix.satellites = 0;
 
     uint32_t start = millis();
+    uint32_t lastUi = 0;
+
     while (millis() - start < timeoutMs) {
+        if (shouldAbort != nullptr && shouldAbort()) {
+            SerialMon.println(F("[GPS] Interrumpido por usuario"));
+            if (gps.location.isValid()) {
+                fix.valid = true;
+                fix.latitude = gps.location.lat();
+                fix.longitude = gps.location.lng();
+                fix.altitude = gps.altitude.isValid() ? gps.altitude.meters() : 0.0;
+                fix.satellites = gps.satellites.isValid() ? (uint8_t)gps.satellites.value() : 0;
+            }
+            break;
+        }
+
         while (SerialGPS.available()) {
             gps.encode(SerialGPS.read());
         }
 
-        if (gps.location.isValid() && gps.satellites.value() >= GPS_MIN_SATELLITES) {
+        fix.satellites = gps.satellites.isValid() ? (uint8_t)gps.satellites.value() : 0;
+
+        uint32_t elapsed = (millis() - start) / 1000UL;
+        if (onProgress != nullptr && (millis() - lastUi) >= 10000UL) {
+            lastUi = millis();
+            onProgress(fix.satellites, elapsed);
+        }
+
+        if (gps.location.isValid() && fix.satellites >= GPS_MIN_SATELLITES) {
             fix.valid = true;
             fix.latitude = gps.location.lat();
             fix.longitude = gps.location.lng();
@@ -105,10 +132,11 @@ bool gpsManagerAcquireFix(GpsFix &fix, uint32_t timeoutMs)
             return true;
         }
 
-        delay(200);
+        delay(50);
     }
 
     SerialMon.println(F("[GPS] Timeout sin fix valido"));
+    fix.satellites = gps.satellites.isValid() ? (uint8_t)gps.satellites.value() : 0;
     return false;
 }
 

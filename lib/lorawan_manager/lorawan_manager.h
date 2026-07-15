@@ -14,4 +14,6 @@ struct LoRaWanTxResult {
 bool lorawanManagerBegin();
 bool lorawanManagerJoin(uint8_t maxRetries);
 LoRaWanTxResult lorawanManagerTransmit(const GpsFix &fix, uint16_t batteryMv);
+uint32_t lorawanManagerGetFCntUp();
+uint32_t lorawanManagerGetDevAddr();
 void lorawanManagerSleep();

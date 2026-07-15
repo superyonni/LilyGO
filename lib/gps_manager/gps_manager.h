@@ -12,5 +12,8 @@ struct GpsFix {
 };
 
 bool gpsManagerBegin();
-bool gpsManagerAcquireFix(GpsFix &fix, uint32_t timeoutMs);
+typedef void (*GpsProgressFn)(uint8_t satellites, uint32_t elapsedSec);
+typedef bool (*GpsAbortFn)();
+bool gpsManagerAcquireFix(GpsFix &fix, uint32_t timeoutMs, GpsProgressFn onProgress = nullptr,
+                          GpsAbortFn shouldAbort = nullptr);
 void gpsManagerSleep();
